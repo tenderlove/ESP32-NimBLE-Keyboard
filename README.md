@@ -1,5 +1,7 @@
 # ESP32 NimBLE Keyboard library
 
+This library is made to be used with ESP IDF dev environment.
+
 Changed the original [ESP32-BLE-Keyboard](https://github.com/T-vK/ESP32-BLE-Keyboard) to support NimBLE.
 
 This library allows you to make the ESP32 act as a Bluetooth Keyboard and control what it does.  

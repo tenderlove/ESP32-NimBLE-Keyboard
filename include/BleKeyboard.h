@@ -9,7 +9,6 @@
 #include "BleConnectionStatus.h"
 #include "NimBLEHIDDevice.h"
 #include "NimBLECharacteristic.h"
-#include "Print.h"
 
 
 const uint8_t KEY_LEFT_CTRL = 0x80;
@@ -89,7 +88,7 @@ typedef struct
   uint8_t keys[6];
 } KeyReport;
 
-class BleKeyboard : public Print
+class BleKeyboard
 {
 private:
   BleConnectionStatus* connectionStatus;
@@ -100,6 +99,7 @@ private:
   KeyReport _keyReport;
   MediaKeyReport _mediaKeyReport;
   static void taskServer(void* pvParameter);
+  void clearAll(void);
 public:
   BleKeyboard(std::string deviceName = "ESP32-Keyboard", std::string deviceManufacturer = "Espressif", uint8_t batteryLevel = 100);
   void begin(void);

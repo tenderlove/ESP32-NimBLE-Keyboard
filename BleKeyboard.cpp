@@ -3,7 +3,6 @@
 #include <NimBLEServer.h>
 #include "NimBLEHIDDevice.h"
 #include "HIDTypes.h"
-#include <driver/adc.h>
 #include "sdkconfig.h"
 
 #include "BleConnectionStatus.h"
@@ -94,6 +93,7 @@ BleKeyboard::BleKeyboard(std::string deviceName, std::string deviceManufacturer,
   this->deviceManufacturer = deviceManufacturer;
   this->batteryLevel = batteryLevel;
   this->connectionStatus = new BleConnectionStatus();
+  this->clearAll();
 }
 
 void BleKeyboard::begin(void)
@@ -172,9 +172,6 @@ void BleKeyboard::sendReport(MediaKeyReport* keys)
     this->inputMediaKeys->notify();
   }
 }
-
-extern
-const uint8_t _asciimap[128] PROGMEM;
 
 #define SHIFT 0x80
 const uint8_t _asciimap[128] =
@@ -320,39 +317,44 @@ uint8_t USBPutChar(uint8_t c);
 size_t BleKeyboard::press(uint8_t k)
 {
 	uint8_t i;
+        uint8_t pressed_key = 0;
 	if (k >= 136) {			// it's a non-printing key (not a modifier)
-		k = k - 136;
+		pressed_key = k - 136;
 	} else if (k >= 128) {	// it's a modifier key
 		_keyReport.modifiers |= (1<<(k-128));
-		k = 0;
+		pressed_key = 0;
 	} else {				// it's a printing key
-		k = pgm_read_byte(_asciimap + k);
-		if (!k) {
-			setWriteError();
+		pressed_key = _asciimap[k];
+                printf("pressed %d -> %d???\n", k, pressed_key);
+		if (!pressed_key) {
+                        printf("press: not in the ascii map!\n");
 			return 0;
 		}
-		if (k & 0x80) {						// it's a capital letter or other character reached with shift
+		if (pressed_key & 0x80) {						// it's a capital letter or other character reached with shift
 			_keyReport.modifiers |= 0x02;	// the left shift modifier
-			k &= 0x7F;
+			pressed_key &= 0x7F;
 		}
 	}
 
 	// Add k to the key report only if it's not already present
 	// and if there is an empty slot.
-	if (_keyReport.keys[0] != k && _keyReport.keys[1] != k &&
-		_keyReport.keys[2] != k && _keyReport.keys[3] != k &&
-		_keyReport.keys[4] != k && _keyReport.keys[5] != k) {
+	if (_keyReport.keys[0] != pressed_key && _keyReport.keys[1] != pressed_key &&
+		_keyReport.keys[2] != pressed_key && _keyReport.keys[3] != pressed_key &&
+		_keyReport.keys[4] != pressed_key && _keyReport.keys[5] != pressed_key) {
 
 		for (i=0; i<6; i++) {
 			if (_keyReport.keys[i] == 0x00) {
-				_keyReport.keys[i] = k;
+				_keyReport.keys[i] = pressed_key;
 				break;
 			}
 		}
 		if (i == 6) {
-			setWriteError();
+                        printf("no empty wtf???\n");
 			return 0;
 		}
+		for (i=0; i<6; i++) {
+                    printf("reporting keys: %d\n", _keyReport.keys[i]);
+                }
 	}
 	sendReport(&_keyReport);
 	return 1;
@@ -383,8 +385,9 @@ size_t BleKeyboard::release(uint8_t k)
 		_keyReport.modifiers &= ~(1<<(k-128));
 		k = 0;
 	} else {				// it's a printing key
-		k = pgm_read_byte(_asciimap + k);
+		k = _asciimap[k];
 		if (!k) {
+                        printf("release: not in the ascii map!\n");
 			return 0;
 		}
 		if (k & 0x80) {							// it's a capital letter or other character reached with shift
@@ -419,16 +422,21 @@ size_t BleKeyboard::release(const MediaKeyReport k)
 
 void BleKeyboard::releaseAll(void)
 {
-	_keyReport.keys[0] = 0;
-	_keyReport.keys[1] = 0;
-	_keyReport.keys[2] = 0;
-	_keyReport.keys[3] = 0;
-	_keyReport.keys[4] = 0;
-	_keyReport.keys[5] = 0;
-	_keyReport.modifiers = 0;
+    clearAll();
+    sendReport(&_keyReport);
+}
+
+void BleKeyboard::clearAll(void)
+{
+    _keyReport.keys[0] = 0;
+    _keyReport.keys[1] = 0;
+    _keyReport.keys[2] = 0;
+    _keyReport.keys[3] = 0;
+    _keyReport.keys[4] = 0;
+    _keyReport.keys[5] = 0;
+    _keyReport.modifiers = 0;
     _mediaKeyReport[0] = 0;
     _mediaKeyReport[1] = 0;
-	sendReport(&_keyReport);
 }
 
 size_t BleKeyboard::write(uint8_t c)
