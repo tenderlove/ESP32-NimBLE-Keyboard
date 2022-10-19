@@ -19,6 +19,8 @@ public:
   NimBLECharacteristic* inputKeyboard;
   NimBLECharacteristic* outputKeyboard;
   NimBLECharacteristic* inputMediaKeys;
+  NimBLECharacteristic* inputData;
+  NimBLECharacteristic* outputData;
 };
 
 #endif // CONFIG_BT_NIMBLE_ROLE_PERIPHERAL

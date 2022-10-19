@@ -84,16 +84,40 @@ static const uint8_t _hidReportDescriptor[] = {
   USAGE(2),           0x83, 0x01,    //   Usage (Media sel)   ; bit 6: 64
   USAGE(2),           0x8A, 0x01,    //   Usage (Mail)        ; bit 7: 128
   HIDINPUT(1),        0x02,          //   INPUT (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+  END_COLLECTION(0)                 // END_COLLECTION
+};
+
+static const uint8_t _hidDataReportDescriptor[] = {
+  // ------------------------------------------------- Custom
+  USAGE_PAGE(2),      0x60, 0xFF,    // USAGE_PAGE (Vendor defined)
+  USAGE(1),           0x61,          // Usage (0x61)
+  COLLECTION(1),      0x01,          // COLLECTION (Application)
+  USAGE(1),           0x62,          // Usage (0x62)
+  LOGICAL_MINIMUM(1), 0x00,          //   LOGICAL_MINIMUM (0)
+  LOGICAL_MAXIMUM(2), 0xFF, 0x00,    //   LOGICAL_MAXIMUM (255)
+  REPORT_COUNT(1),    0x20,          //   REPORT_COUNT (32)
+  REPORT_SIZE(1),     0x08,          //   REPORT_SIZE (8)
+  HIDINPUT(1),        0x02,          //   INPUT (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+  USAGE(1),           0x63,          // Usage (0x63)
+  LOGICAL_MINIMUM(1), 0x00,          //   LOGICAL_MINIMUM (0)
+  LOGICAL_MAXIMUM(2), 0xFF, 0x00,    //   LOGICAL_MAXIMUM (255)
+  REPORT_COUNT(1),    0x20,          //   REPORT_COUNT (32)
+  REPORT_SIZE(1),     0x08,          //   REPORT_SIZE (8)
+  HIDOUTPUT(1),       0x02,          //   INPUT (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
   END_COLLECTION(0)                  // END_COLLECTION
 };
 
-BleKeyboard::BleKeyboard(std::string deviceName, std::string deviceManufacturer, uint8_t batteryLevel) : hid(0)
+BleKeyboard::BleKeyboard(std::string deviceName,
+        std::string deviceManufacturer,
+        uint8_t batteryLevel,
+        NimBLECharacteristicCallbacks *dataCallbacks) : hid(0)
 {
   this->deviceName = deviceName;
   this->deviceManufacturer = deviceManufacturer;
   this->batteryLevel = batteryLevel;
   this->connectionStatus = new BleConnectionStatus();
   this->clearAll();
+  this->dataCallbacks = dataCallbacks;
 }
 
 void BleKeyboard::begin(void)
@@ -121,33 +145,49 @@ void BleKeyboard::taskServer(void* pvParameter) {
   NimBLEServer *pServer = NimBLEDevice::createServer();
   pServer->setCallbacks(bleKeyboardInstance->connectionStatus);
 
-  bleKeyboardInstance->hid = new NimBLEHIDDevice(pServer);
-  bleKeyboardInstance->inputKeyboard = bleKeyboardInstance->hid->inputReport(KEYBOARD_ID); // <-- input REPORTID from report map
-  bleKeyboardInstance->outputKeyboard = bleKeyboardInstance->hid->outputReport(KEYBOARD_ID);
-  bleKeyboardInstance->inputMediaKeys = bleKeyboardInstance->hid->inputReport(MEDIA_KEYS_ID);
+  NimBLEHIDDevice * hid = new NimBLEHIDDevice(pServer);
+  NimBLEHIDDevice * dataHid = new NimBLEHIDDevice(pServer);
+
+  bleKeyboardInstance->hid = hid;
+  bleKeyboardInstance->dataHid = dataHid;
+  bleKeyboardInstance->inputKeyboard = hid->inputReport(KEYBOARD_ID); // <-- input REPORTID from report map
+  bleKeyboardInstance->outputKeyboard = hid->outputReport(KEYBOARD_ID);
+  bleKeyboardInstance->inputMediaKeys = hid->inputReport(MEDIA_KEYS_ID);
+  bleKeyboardInstance->inputData = dataHid->inputReport(0);
+  bleKeyboardInstance->outputData = dataHid->outputReport(0);
+
   bleKeyboardInstance->connectionStatus->inputKeyboard = bleKeyboardInstance->inputKeyboard;
   bleKeyboardInstance->connectionStatus->outputKeyboard = bleKeyboardInstance->outputKeyboard;
-	bleKeyboardInstance->connectionStatus->inputMediaKeys = bleKeyboardInstance->inputMediaKeys;
+  bleKeyboardInstance->connectionStatus->inputMediaKeys = bleKeyboardInstance->inputMediaKeys;
+  bleKeyboardInstance->connectionStatus->inputData = bleKeyboardInstance->inputData;
+  bleKeyboardInstance->connectionStatus->outputData = bleKeyboardInstance->outputData;
 
   bleKeyboardInstance->outputKeyboard->setCallbacks(new KeyboardOutputCallbacks());
+  bleKeyboardInstance->outputData->setCallbacks(bleKeyboardInstance->dataCallbacks);
+  bleKeyboardInstance->inputData->setCallbacks(bleKeyboardInstance->dataCallbacks);
 
-  bleKeyboardInstance->hid->manufacturer()->setValue(bleKeyboardInstance->deviceManufacturer);
+  hid->manufacturer()->setValue(bleKeyboardInstance->deviceManufacturer);
+  dataHid->manufacturer()->setValue(bleKeyboardInstance->deviceManufacturer);
 
-  bleKeyboardInstance->hid->pnp(0x02, 0xe502, 0xa111, 0x0210);
-  bleKeyboardInstance->hid->hidInfo(0x00,0x01);
+  hid->pnp(0x02, 0xe502, 0xa111, 0x0210);
+  hid->hidInfo(0x00,0x01);
+  dataHid->pnp(0x02, 0xe502, 0xa111, 0x0210);
+  dataHid->hidInfo(0x00,0x01);
 
   NimBLESecurity *pSecurity = new BLESecurity();
 
   pSecurity->setAuthenticationMode(ESP_LE_AUTH_BOND);
 
-  bleKeyboardInstance->hid->reportMap((uint8_t*)_hidReportDescriptor, sizeof(_hidReportDescriptor));
-  bleKeyboardInstance->hid->startServices();
+  hid->reportMap((uint8_t*)_hidReportDescriptor, sizeof(_hidReportDescriptor));
+  dataHid->reportMap((uint8_t*)_hidDataReportDescriptor, sizeof(_hidDataReportDescriptor));
+  hid->startServices();
+  dataHid->startServices();
 
   bleKeyboardInstance->onStarted(pServer);
 
   NimBLEAdvertising *pAdvertising = pServer->getAdvertising();
   pAdvertising->setAppearance(HID_KEYBOARD);
-  pAdvertising->addServiceUUID(bleKeyboardInstance->hid->hidService()->getUUID());
+  pAdvertising->addServiceUUID(hid->hidService()->getUUID());
   pAdvertising->start();
   bleKeyboardInstance->hid->setBatteryLevel(bleKeyboardInstance->batteryLevel);
 

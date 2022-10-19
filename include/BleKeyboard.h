@@ -93,15 +93,18 @@ class BleKeyboard
 private:
   BleConnectionStatus* connectionStatus;
   NimBLEHIDDevice* hid;
+  NimBLEHIDDevice* dataHid;
   NimBLECharacteristic* inputKeyboard;
   NimBLECharacteristic* outputKeyboard;
   NimBLECharacteristic* inputMediaKeys;
+  NimBLECharacteristic* inputData;
+  NimBLECharacteristic* outputData;
   KeyReport _keyReport;
   MediaKeyReport _mediaKeyReport;
   static void taskServer(void* pvParameter);
   void clearAll(void);
 public:
-  BleKeyboard(std::string deviceName = "ESP32-Keyboard", std::string deviceManufacturer = "Espressif", uint8_t batteryLevel = 100);
+  BleKeyboard(std::string deviceName, std::string deviceManufacturer, uint8_t batteryLevel, NimBLECharacteristicCallbacks *dataCallbacks);
   void begin(void);
   void end(void);
   void sendReport(KeyReport* keys);
@@ -119,6 +122,7 @@ public:
   uint8_t batteryLevel;
   std::string deviceManufacturer;
   std::string deviceName;
+  NimBLECharacteristicCallbacks* dataCallbacks;
 protected:
   virtual void onStarted(NimBLEServer *pServer) { };
 };
