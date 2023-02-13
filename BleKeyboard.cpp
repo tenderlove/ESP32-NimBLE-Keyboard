@@ -174,9 +174,7 @@ void BleKeyboard::taskServer(void* pvParameter) {
   dataHid->pnp(0x02, 0xe502, 0xa111, 0x0210);
   dataHid->hidInfo(0x00,0x01);
 
-  NimBLESecurity *pSecurity = new BLESecurity();
-
-  pSecurity->setAuthenticationMode(ESP_LE_AUTH_BOND);
+  NimBLEDevice::setSecurityAuth(BLE_SM_PAIR_AUTHREQ_BOND);
 
   hid->reportMap((uint8_t*)_hidReportDescriptor, sizeof(_hidReportDescriptor));
   dataHid->reportMap((uint8_t*)_hidDataReportDescriptor, sizeof(_hidDataReportDescriptor));

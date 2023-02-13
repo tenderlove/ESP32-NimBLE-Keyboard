@@ -11,7 +11,7 @@
 KeyboardOutputCallbacks::KeyboardOutputCallbacks(void) {
 }
 
-void KeyboardOutputCallbacks::onWrite(NimBLECharacteristic* me) {
+void KeyboardOutputCallbacks::onWrite(NimBLECharacteristic* me, NimBLEConnInfo& connInfo) {
   uint8_t* value = (uint8_t*)(me->getValue()->c_str());
   ESP_LOGI(LOG_TAG, "special keys: %d", *value);
 }

@@ -14,8 +14,8 @@ class BleConnectionStatus : public NimBLEServerCallbacks
 public:
   BleConnectionStatus(void);
   bool connected = false;
-  void onConnect(NimBLEServer* pServer);
-  void onDisconnect(NimBLEServer* pServer);
+  void onConnect(NimBLEServer* pServer, NimBLEConnInfo& connInfo);
+  void onDisconnect(NimBLEServer* pServer, NimBLEConnInfo& connInfo, int reason);
   NimBLECharacteristic* inputKeyboard;
   NimBLECharacteristic* outputKeyboard;
   NimBLECharacteristic* inputMediaKeys;

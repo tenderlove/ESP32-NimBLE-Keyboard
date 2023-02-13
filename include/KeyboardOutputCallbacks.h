@@ -13,7 +13,7 @@ class KeyboardOutputCallbacks : public NimBLECharacteristicCallbacks
 {
 public:
   KeyboardOutputCallbacks(void);
-  void onWrite(NimBLECharacteristic* me);
+  void onWrite(NimBLECharacteristic* me, NimBLEConnInfo& connInfo);
 };
 
 #endif // CONFIG_BT_NIMBLE_ROLE_PERIPHERAL
